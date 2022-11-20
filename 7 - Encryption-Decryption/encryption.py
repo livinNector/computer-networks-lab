@@ -1,6 +1,4 @@
 #!/usr/bin/python
-import sys
-
 
 def encrypt(string, shift):
     cipher = ""

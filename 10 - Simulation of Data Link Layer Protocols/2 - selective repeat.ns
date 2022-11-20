@@ -1,0 +1,67 @@
+set ns [new Simulator] 
+
+set nf [open selective_repeat.nam w]
+$ns namtrace-all $nf 
+set f [open selective_repeat.tr w]
+$ns trace-all $f
+
+proc finish {} {
+    global ns nf
+    $ns flush-trace 
+    close $nf
+
+    puts "filtering..."
+    #exec tclsh../bin/namfilter.tclgoback.nam #puts "running nam..."
+    exec nam goback.nam & 
+    exit 0
+}
+
+set colors  {"purple" "violet" "chocolate"}
+for {set i 0} {$i < 6} {incr i} {
+    set n($i) [$ns node];
+    #$n($i) color 
+    $n($i) shape circle
+    $ns at 0.0 "$n($i) label SYS$i"
+    
+}
+
+$ns duplex-link $n(0) $n(2) 1Mb 20ms DropTail
+$ns duplex-link-op $n(0) $n(2) orient right-down
+$ns queue-limit $n(0) $n(2) 5
+$ns duplex-link $n(1) $n(2) 1Mb 20ms DropTail
+$ns duplex-link-op $n(1) $n(2) orient right-up
+$ns duplex-link $n(2) $n(3) 1Mb 20ms DropTail
+$ns duplex-link-op $n(2) $n(3) orient right
+$ns duplex-link $n(3) $n(4) 1Mb 20ms DropTail
+$ns duplex-link-op $n(3) $n(4) orient right-up
+$ns duplex-link $n(3) $n(5) 1Mb 20ms DropTail
+$ns duplex-link-op $n(3) $n(5) orient right-down 
+
+Agent/TCP set_nam_tracevar_true
+set tcp [new Agent/TCP]
+$tcp set fid 1
+$ns attach-agent $n(1) $tcp
+set sink [new Agent/TCPSink]
+$ns attach-agent $n(4) $sink
+$ns connect $tcp $sink
+set ftp [new Application/FTP]
+$ftp attach-agent $tcp
+
+$ns at 0.05 "$ftp start"
+$ns at 0.06 "$tcp set windowlnit 8"
+$ns at 0.06 "$tcp set maxcwnd 8"
+$ns at 0.25 "$ns queue-limit $n(3) $n(4) 0"
+$ns at 0.26 "$ns queue-limit $n(3) $n(4) 10"
+$ns at 0.30 "$tcp set windowlnit 1"
+$ns at 0.30 "$tcp set maxcwnd 1"
+$ns at 0.30 "$ns queue-limit $n(3) $n(4) 10"
+$ns at 0.47 "$ns detach-agent $n(1) $tcp;$ns detach-agent $n(4) $sink"
+$ns at 1.75 "finish"
+$ns at 0.0 "$ns trace-annotate \"Select and repeat\""
+$ns at 0.05 "$ns trace-annotate \"FTP starts at 0.01\""
+$ns at 0.06 "$ns trace-annotate \"Send 8Packets from SYS1 to SYS4\""
+$ns at 0.26 "$ns trace-annotate \"Error Occurs in 4th packet \""
+$ns at 0.30 "$ns trace-annotate \"Retransmit Packet_4 from SYS1 to SYS4\""
+$ns at 1.5 "$ns trace-annotate \"FTP stops\""
+
+$ns run
